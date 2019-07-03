@@ -78,9 +78,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var parse = __importStar(require("curtiz-parse-markdown"));
-exports.parse = parse;
 var quiz = __importStar(require("curtiz-quiz-planner"));
-exports.quiz = quiz;
 var level_js_1 = __importDefault(require("level-js"));
 var levelup_1 = __importDefault(require("levelup"));
 var EBISU_PREFIX = 'ebisus/';
@@ -98,7 +96,7 @@ exports.setup = setup;
 function loadEbisus(db) {
     var ebisus = new Map();
     return new Promise(function (resolve, reject) {
-        db.createReadStream({ 'gt': EBISU_PREFIX, lt: EBISU_PREFIX.slice(0, -1) + '\xff' })
+        db.createReadStream({ gt: EBISU_PREFIX, lt: EBISU_PREFIX + '\xff', valueAsBuffer: false, keyAsBuffer: false })
             .on('data', function (_a) {
             var key = _a.key, value = _a.value;
             return ebisus.set(key.slice(EBISU_PREFIX.length), rehydrateEbisu(value));
@@ -139,7 +137,6 @@ function learnQuizzes(db, keys, args, date, opts) {
     var prefixEv = EVENT_PREFIX + date.toISOString() + '-';
     var ops = Array.from(keys, function (key, idx) { return [{ type: PUT, key: prefixEv + idx, value: { opts: opts, ebisu: args.ebisus.get(key) } },
         { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }]; });
-    // console.log('learnQuiz batch', ops)
     return db.batch(flat1(ops));
 }
 exports.learnQuizzes = learnQuizzes;
@@ -155,12 +152,12 @@ function summarizeDb(db) {
 exports.summarizeDb = summarizeDb;
 function test() {
     return __awaiter(this, void 0, void 0, function () {
-        var db, md, graph, _a, _b, _c, allKeys, hl, ab, myAlphaBeta, date, _d, _e, _f;
+        var md, db, graph, _a, _b, _c, allKeys, hl, ab, myAlphaBeta, date, _d, _e, _f, toQuiz;
         return __generator(this, function (_g) {
             switch (_g.label) {
                 case 0:
-                    db = setup('testing');
                     md = "## @ \u5343\u3068\u5343\u5C0B\u306E\u795E\u96A0\u3057 @ \u305B\u3093\u3068\u3061\u3072\u308D\u306E\u304B\u307F\u304C\u304F\u3057\n- @fill \u3068\n- @fill \u306E\n- @ \u5343 @ \u305B\u3093    @pos noun-proper-name-firstname @omit [\u5343]\u3068\n- @ \u5343\u5C0B @ \u3061\u3072\u308D    @pos noun-proper-name-firstname\n- @ \u795E\u96A0\u3057 @ \u304B\u307F\u304C\u304F\u3057    @pos noun-common-general\n- @translation @en Spirited Away (film)\n## @ \u3053\u306E\u304A\u306F\u306A\u3057\u306B\u51FA\u3066\u6765\u308B\u4EBA\u3073\u3068 @ \u3053\u306E\u304A\u306F\u306A\u3057\u306B\u3067\u3066\u304F\u308B\u3072\u3068\u3073\u3068\n- @fill \u306B\n- @fill \u51FA\u3066\u6765\u308B @ \u3067\u3066\u304F\u308B\n- @ \u8A71 @ \u306F\u306A\u3057    @pos noun-common-verbal_suru @omit \u306F\u306A\u3057\n- @ \u51FA\u308B @ \u3067\u308B    @pos verb-general @omit \u51FA\n- @ \u6765\u308B @ \u304F\u308B    @pos verb-bound\n- @ \u4EBA\u3005 @ \u3072\u3068\u3073\u3068    @pos noun-common-general @omit \u4EBA\u3073\u3068\n## @ \u6E6F\u5A46\u5A46 @ \u3086\u3070\u30FC\u3070\n- @ \u6E6F\u5A46\u5A46 @ \u3086\u3070\u30FC\u3070    @pos noun-proper-name-general";
+                    db = setup('testing');
                     return [4 /*yield*/, initialize(db, md)];
                 case 1:
                     graph = _g.sent();
@@ -185,6 +182,13 @@ function test() {
                 case 4:
                     _e.apply(_d, _f.concat([_g.sent()]));
                     console.log('graph', graph);
+                    toQuiz = quiz.whichToQuiz(graph);
+                    if (!toQuiz) {
+                        console.log('nothing to learn!');
+                    }
+                    else {
+                        console.log('will quiz: ', toQuiz);
+                    }
                     return [2 /*return*/];
             }
         });
@@ -13306,7 +13310,7 @@ function _separateAtSeparateds(s, n = 0) {
 }
 exports._separateAtSeparateds = _separateAtSeparateds;
 function makeCard(prompt, responses) {
-    return { prompt, responses, uniqueId: JSON.stringify({ prompt, responses }) };
+    return { prompt, responses, uniqueId: JSON.stringify({ prompt, responses }), kind: 'card' };
 }
 exports.makeCard = makeCard;
 function updateGraphWithBlock(graph, block) {
@@ -13483,7 +13487,7 @@ function parseCloze(haystack, needleMaybeContext) {
         if (fullRe.exec(haystack)) {
             throw new Error('Insufficient cloze context');
         }
-        return { contexts: [left, null, right], clozes: [[cloze]] };
+        return { contexts: [left, null, right], clozes: [[cloze]], kind: 'cloze' };
     }
     let cloze = needleMaybeContext;
     let clozeRe = new RegExp(cloze, 'g');
@@ -13494,7 +13498,7 @@ function parseCloze(haystack, needleMaybeContext) {
         if (clozeRe.exec(haystack)) {
             throw new Error('Cloze context required');
         }
-        return { contexts: [left, null, right], clozes: [[cloze]] };
+        return { contexts: [left, null, right], clozes: [[cloze]], kind: 'cloze' };
     }
     throw new Error('Cloze not found');
 }
@@ -13504,7 +13508,7 @@ if (module === require.main) {
     console.dir(graph, { depth: null });
 }
 
-},{"curtiz-utils":157}],155:[function(require,module,exports){
+},{"curtiz-utils":159}],155:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var ebisujs = require('ebisu-js');
@@ -13532,7 +13536,7 @@ function defaultEbisu(expectedHalflife = 1, betaAB = 3, d) {
 }
 exports.defaultEbisu = defaultEbisu;
 
-},{"ebisu-js":160}],156:[function(require,module,exports){
+},{"ebisu-js":157}],156:[function(require,module,exports){
 "use strict";
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
@@ -13598,7 +13602,114 @@ function learnQuizzes(keys, { ebisus }, date, opts = {}) {
 }
 exports.learnQuizzes = learnQuizzes;
 
-},{"./ebisu":155,"curtiz-utils":157}],157:[function(require,module,exports){
+},{"./ebisu":155,"curtiz-utils":159}],157:[function(require,module,exports){
+"use strict";
+
+var gammaln = require(
+    '@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/gammaln');
+
+var lse = require('./logsumexp');
+
+var log;
+var exp;
+var expm1;
+if (true) {
+  log = Math.log;
+  exp = Math.exp;
+  expm1 = Math.expm1;
+} else {
+  log =
+      require('@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/log');
+  exp =
+      require('@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/exp');
+  expm1 = require(
+      '@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/expm1');
+}
+
+function predictRecall(prior, tnow) {
+  var [alpha, beta, t] = prior;
+  var dt = tnow / t;
+  return exp(gammaln(alpha + dt) - gammaln(alpha + beta + dt) -
+             (gammaln(alpha) - gammaln(alpha + beta)));
+}
+
+function subtractexp(x, y) {
+  var maxval = Math.max(x, y);
+  return exp(maxval) * (exp(x - maxval) - exp(y - maxval));
+}
+
+function updateRecall(prior, result, tnow) {
+  var [alpha, beta, t] = prior
+  var dt = tnow / t;
+  var mu;
+  var v;
+  if (result) {
+    var same = gammaln(alpha + beta + dt) - gammaln(alpha + dt);
+    var muln = gammaln(alpha + 2 * dt) - gammaln(alpha + beta + 2 * dt) + same;
+    mu = exp(muln);
+    v = subtractexp(same + gammaln(alpha + 3 * dt) -
+                        gammaln(alpha + beta + 3 * dt),
+                    2 * muln);
+  } else {
+    var s = Array.from(Array(4), (_, n) => gammaln(alpha + n * dt) -
+                                           gammaln(alpha + beta + n * dt));
+    mu = expm1(s[2] - s[1]) / -expm1(s[0] - s[1]);
+
+    var n1 = lse([ s[1], s[0] ], [ 1, -1 ]);
+    n1[0] += s[3];
+
+    var n2 = lse([ s[0], s[1], s[2] ], [ 1, 1, -1 ]);
+    n2[0] += s[2];
+
+    var n3 = [ s[1] * 2, 1. ];
+
+    var d = lse([ s[1], s[0] ], [ 1, -1 ]);
+    d[0] *= 2;
+
+    var n = lse([ n1[0], n2[0], n3[0] ], [ n1[1], n2[1], -n3[1] ]);
+
+    v = exp(n[0] - d[0])
+  }
+  var [newAlpha, newBeta] = meanVarToBeta(mu, v);
+  return [ newAlpha, newBeta, tnow ];
+}
+
+function meanVarToBeta(mean, v) {
+  var tmp = mean * (1 - mean) / v - 1;
+  var alpha = mean * tmp
+  var beta = (1 - mean) * tmp;
+  return [ alpha, beta ];
+}
+
+function defaultModel(t, a = 4.0, b = a) { return [ a, b, t ]; }
+
+module.exports = {
+  updateRecall : updateRecall,
+  predictRecall : predictRecall,
+  defaultModel : defaultModel
+};
+
+},{"./logsumexp":158,"@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/exp":70,"@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/expm1":73,"@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/gammaln":78,"@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/log":101}],158:[function(require,module,exports){
+var exp = Math.exp;
+var log = Math.log;
+var sign = Math.sign;
+var max = Math.max;
+
+function logsumexp(a, b) {
+  var a_max = max(...a);
+  var s = 0;
+  for (let i = a.length - 1; i >= 0; i--) {
+    // for (let i = 0; i < a.length; i++) {
+    s += b[i] * exp(a[i] - a_max);
+  }
+  var sgn = sign(s);
+  s *= sgn;
+  var out = log(s) + a_max;
+  return [ out, sgn ];
+}
+module.exports = logsumexp;
+
+},{}],159:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
@@ -13842,7 +13953,7 @@ function* flatMapIterator(it, f) {
 }
 exports.flatMapIterator = flatMapIterator;
 
-},{}],158:[function(require,module,exports){
+},{}],160:[function(require,module,exports){
 var AbstractIterator = require('abstract-leveldown').AbstractIterator
 var inherits = require('inherits')
 
@@ -13876,7 +13987,7 @@ DeferredIterator.prototype._operation = function (method, args) {
 
 module.exports = DeferredIterator
 
-},{"abstract-leveldown":146,"inherits":172}],159:[function(require,module,exports){
+},{"abstract-leveldown":146,"inherits":172}],161:[function(require,module,exports){
 var AbstractLevelDOWN = require('abstract-leveldown').AbstractLevelDOWN
 var inherits = require('inherits')
 var DeferredIterator = require('./deferred-iterator')
@@ -13966,114 +14077,7 @@ DeferredLevelDOWN.prototype._serializeValue = function (value) {
 module.exports = DeferredLevelDOWN
 module.exports.DeferredIterator = DeferredIterator
 
-},{"./deferred-iterator":158,"abstract-leveldown":146,"inherits":172}],160:[function(require,module,exports){
-"use strict";
-
-var gammaln = require(
-    '@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/gammaln');
-
-var lse = require('./logsumexp');
-
-var log;
-var exp;
-var expm1;
-if (true) {
-  log = Math.log;
-  exp = Math.exp;
-  expm1 = Math.expm1;
-} else {
-  log =
-      require('@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/log');
-  exp =
-      require('@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/exp');
-  expm1 = require(
-      '@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/expm1');
-}
-
-function predictRecall(prior, tnow) {
-  var [alpha, beta, t] = prior;
-  var dt = tnow / t;
-  return exp(gammaln(alpha + dt) - gammaln(alpha + beta + dt) -
-             (gammaln(alpha) - gammaln(alpha + beta)));
-}
-
-function subtractexp(x, y) {
-  var maxval = Math.max(x, y);
-  return exp(maxval) * (exp(x - maxval) - exp(y - maxval));
-}
-
-function updateRecall(prior, result, tnow) {
-  var [alpha, beta, t] = prior
-  var dt = tnow / t;
-  var mu;
-  var v;
-  if (result) {
-    var same = gammaln(alpha + beta + dt) - gammaln(alpha + dt);
-    var muln = gammaln(alpha + 2 * dt) - gammaln(alpha + beta + 2 * dt) + same;
-    mu = exp(muln);
-    v = subtractexp(same + gammaln(alpha + 3 * dt) -
-                        gammaln(alpha + beta + 3 * dt),
-                    2 * muln);
-  } else {
-    var s = Array.from(Array(4), (_, n) => gammaln(alpha + n * dt) -
-                                           gammaln(alpha + beta + n * dt));
-    mu = expm1(s[2] - s[1]) / -expm1(s[0] - s[1]);
-
-    var n1 = lse([ s[1], s[0] ], [ 1, -1 ]);
-    n1[0] += s[3];
-
-    var n2 = lse([ s[0], s[1], s[2] ], [ 1, 1, -1 ]);
-    n2[0] += s[2];
-
-    var n3 = [ s[1] * 2, 1. ];
-
-    var d = lse([ s[1], s[0] ], [ 1, -1 ]);
-    d[0] *= 2;
-
-    var n = lse([ n1[0], n2[0], n3[0] ], [ n1[1], n2[1], -n3[1] ]);
-
-    v = exp(n[0] - d[0])
-  }
-  var [newAlpha, newBeta] = meanVarToBeta(mu, v);
-  return [ newAlpha, newBeta, tnow ];
-}
-
-function meanVarToBeta(mean, v) {
-  var tmp = mean * (1 - mean) / v - 1;
-  var alpha = mean * tmp
-  var beta = (1 - mean) * tmp;
-  return [ alpha, beta ];
-}
-
-function defaultModel(t, a = 4.0, b = a) { return [ a, b, t ]; }
-
-module.exports = {
-  updateRecall : updateRecall,
-  predictRecall : predictRecall,
-  defaultModel : defaultModel
-};
-
-},{"./logsumexp":161,"@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/exp":70,"@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/expm1":73,"@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/gammaln":78,"@stdlib/stdlib/lib/node_modules/@stdlib/math/base/special/log":101}],161:[function(require,module,exports){
-var exp = Math.exp;
-var log = Math.log;
-var sign = Math.sign;
-var max = Math.max;
-
-function logsumexp(a, b) {
-  var a_max = max(...a);
-  var s = 0;
-  for (let i = a.length - 1; i >= 0; i--) {
-    // for (let i = 0; i < a.length; i++) {
-    s += b[i] * exp(a[i] - a_max);
-  }
-  var sgn = sign(s);
-  s *= sgn;
-  var out = log(s) + a_max;
-  return [ out, sgn ];
-}
-module.exports = logsumexp;
-
-},{}],162:[function(require,module,exports){
+},{"./deferred-iterator":160,"abstract-leveldown":146,"inherits":172}],162:[function(require,module,exports){
 var prr = require('prr')
 
 function init (type, message, cause) {
@@ -16220,7 +16224,7 @@ LevelUP.errors = errors
 module.exports = LevelUP.default = LevelUP
 
 }).call(this,require('_process'))
-},{"./batch":182,"./common":183,"./promisify":185,"_process":188,"assert":147,"deferred-leveldown":159,"events":164,"level-errors":175,"level-iterator-stream":176,"util":211,"xtend":212}],185:[function(require,module,exports){
+},{"./batch":182,"./common":183,"./promisify":185,"_process":188,"assert":147,"deferred-leveldown":161,"events":164,"level-errors":175,"level-iterator-stream":176,"util":211,"xtend":212}],185:[function(require,module,exports){
 function promisify () {
   var callback
   var promise = new Promise(function (resolve, reject) {

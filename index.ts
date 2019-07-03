@@ -19,17 +19,15 @@ export function setup(name: string): Db { return level(leveljs(name)) }
 export function loadEbisus(db: Db): Promise<quiz.KeyToEbisu> {
   let ebisus: Map<string, any> = new Map();
   return new Promise((resolve, reject) => {
-    db.createReadStream({'gt': EBISU_PREFIX, lt: EBISU_PREFIX.slice(0, -1) + '\xff'})
+    db.createReadStream({gt: EBISU_PREFIX, lt: EBISU_PREFIX + '\xff', valueAsBuffer: false, keyAsBuffer: false})
         .on('data', ({key, value}) => ebisus.set(key.slice(EBISU_PREFIX.length), rehydrateEbisu(value)))
         .on('close', () => resolve({ebisus}))
-        .on('error', (err) => reject(err));
+        .on('error', err => reject(err));
   });
 }
 export async function initialize(db: Db, md: string): Promise<parse.QuizGraph&quiz.KeyToEbisu> {
   return {...parse.textToGraph(md), ...await loadEbisus(db)};
 }
-export {quiz};
-export {parse};
 export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyToEbisu&parse.QuizGraph, date?: Date) {
   date = date || new Date();
   quiz.updateQuiz(result, key, args, date);
@@ -48,7 +46,6 @@ export function learnQuizzes(db: Db, keys: string[]|IterableIterator<string>, ar
   let ops =
       Array.from(keys, (key, idx) => [{type: PUT, key: prefixEv + idx, value: {opts, ebisu: args.ebisus.get(key)}},
                                       {type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key)}])
-  // console.log('learnQuiz batch', ops)
   return db.batch(flat1(ops));
 }
 
@@ -58,12 +55,11 @@ export function summarizeDb(db: Db) {
     db.createReadStream({valueAsBuffer: false, keyAsBuffer: false})
         .on('data', x => res.push(x))
         .on('close', () => resolve(res))
-        .on('error', (err) => reject(err));
+        .on('error', err => reject(err));
   });
 }
 
 export async function test() {
-  let db = setup('testing');
   let md = `## @ 千と千尋の神隠し @ せんとちひろのかみがくし
 - @fill と
 - @fill の
@@ -80,6 +76,7 @@ export async function test() {
 - @ 人々 @ ひとびと    @pos noun-common-general @omit 人びと
 ## @ 湯婆婆 @ ゆばーば
 - @ 湯婆婆 @ ゆばーば    @pos noun-proper-name-general`;
+  let db = setup('testing');
   let graph = await initialize(db, md);
   console.log('init', await summarizeDb(db))
 
@@ -95,4 +92,11 @@ export async function test() {
 
   console.log('after learning', await summarizeDb(db));
   console.log('graph', graph);
+
+  let toQuiz = quiz.whichToQuiz(graph);
+  if (!toQuiz) {
+    console.log('nothing to learn!');
+  } else {
+    console.log('will quiz: ', toQuiz);
+  }
 }
