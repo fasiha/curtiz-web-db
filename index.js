@@ -45,26 +45,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __read = (this && this.__read) || function (o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-};
-var __spread = (this && this.__spread) || function () {
-    for (var ar = [], i = 0; i < arguments.length; i++) ar = ar.concat(__read(arguments[i]));
-    return ar;
-};
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
@@ -119,20 +99,22 @@ function initialize(db, md) {
     });
 }
 exports.initialize = initialize;
-function updateQuiz(db, result, key, args, date) {
+function updateQuiz(db, result, key, args, _a) {
+    var date = _a.date;
     date = date || new Date();
-    quiz.updateQuiz(result, key, args, date);
-    var updatedEbisu = args.ebisus.get(key);
-    return db.batch([
-        { type: PUT, key: EBISU_PREFIX + key, value: updatedEbisu },
-        { type: PUT, key: EVENT_PREFIX + date.toISOString(), value: { result: result, ebisu: updatedEbisu } }
-    ]);
+    var batch = [];
+    function callback(key, ebisu) {
+        batch.push({ type: PUT, key: EBISU_PREFIX + key, value: ebisu });
+        batch.push({ type: PUT, key: EVENT_PREFIX + date.toISOString(), value: { result: result, ebisu: ebisu } });
+    }
+    quiz.updateQuiz(result, key, args, { date: date, callback: callback });
+    return db.batch(batch);
 }
 exports.updateQuiz = updateQuiz;
 function learnQuizzes(db, keys, args, date, opts) {
     if (opts === void 0) { opts = {}; }
     date = date || new Date();
-    quiz.learnQuizzes(keys, args, date, opts);
+    quiz.learnQuizzes(keys, args, { date: date });
     var prefixEv = EVENT_PREFIX + date.toISOString() + '-';
     var ops = Array.from(keys, function (key, idx) { return [{ type: PUT, key: prefixEv + idx, value: { opts: opts, ebisu: args.ebisus.get(key) } },
         { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }]; });
@@ -149,48 +131,3 @@ function summarizeDb(db) {
     });
 }
 exports.summarizeDb = summarizeDb;
-function test() {
-    return __awaiter(this, void 0, void 0, function () {
-        var md, db, graph, _a, _b, _c, allKeys, hl, ab, myAlphaBeta, date, _d, _e, _f, toQuiz;
-        return __generator(this, function (_g) {
-            switch (_g.label) {
-                case 0:
-                    md = "## @ \u5343\u3068\u5343\u5C0B\u306E\u795E\u96A0\u3057 @ \u305B\u3093\u3068\u3061\u3072\u308D\u306E\u304B\u307F\u304C\u304F\u3057\n- @fill \u3068\n- @fill \u306E\n- @ \u5343 @ \u305B\u3093    @pos noun-proper-name-firstname @omit [\u5343]\u3068\n- @ \u5343\u5C0B @ \u3061\u3072\u308D    @pos noun-proper-name-firstname\n- @ \u795E\u96A0\u3057 @ \u304B\u307F\u304C\u304F\u3057    @pos noun-common-general\n- @translation @en Spirited Away (film)\n## @ \u3053\u306E\u304A\u306F\u306A\u3057\u306B\u51FA\u3066\u6765\u308B\u4EBA\u3073\u3068 @ \u3053\u306E\u304A\u306F\u306A\u3057\u306B\u3067\u3066\u304F\u308B\u3072\u3068\u3073\u3068\n- @fill \u306B\n- @fill \u51FA\u3066\u6765\u308B @ \u3067\u3066\u304F\u308B\n- @ \u8A71 @ \u306F\u306A\u3057    @pos noun-common-verbal_suru @omit \u306F\u306A\u3057\n- @ \u51FA\u308B @ \u3067\u308B    @pos verb-general @omit \u51FA\n- @ \u6765\u308B @ \u304F\u308B    @pos verb-bound\n- @ \u4EBA\u3005 @ \u3072\u3068\u3073\u3068    @pos noun-common-general @omit \u4EBA\u3073\u3068\n## @ \u6E6F\u5A46\u5A46 @ \u3086\u3070\u30FC\u3070\n- @ \u6E6F\u5A46\u5A46 @ \u3086\u3070\u30FC\u3070    @pos noun-proper-name-general";
-                    db = setup('testing');
-                    return [4 /*yield*/, initialize(db, md)];
-                case 1:
-                    graph = _g.sent();
-                    _b = (_a = console).log;
-                    _c = ['init'];
-                    return [4 /*yield*/, summarizeDb(db)];
-                case 2:
-                    _b.apply(_a, _c.concat([_g.sent()]));
-                    allKeys = flat1(__spread(graph.raws.values()).map(function (set) { return __spread(set.values()); }));
-                    console.log('allKeys', allKeys);
-                    console.log('graph', graph);
-                    hl = quiz.DEFAULT_EBISU_HALFLIFE_HOURS;
-                    ab = quiz.DEFAULT_EBISU_ALPHA_BETA;
-                    myAlphaBeta = 3;
-                    date = new Date();
-                    return [4 /*yield*/, learnQuizzes(db, allKeys.slice(0, 3), graph, date, { halflifeScale: 1.5, alphaBeta: myAlphaBeta })];
-                case 3:
-                    _g.sent();
-                    _e = (_d = console).log;
-                    _f = ['after learning'];
-                    return [4 /*yield*/, summarizeDb(db)];
-                case 4:
-                    _e.apply(_d, _f.concat([_g.sent()]));
-                    console.log('graph', graph);
-                    toQuiz = quiz.whichToQuiz(graph);
-                    if (!toQuiz) {
-                        console.log('nothing to learn!');
-                    }
-                    else {
-                        console.log('will quiz: ', toQuiz);
-                    }
-                    return [2 /*return*/];
-            }
-        });
-    });
-}
-exports.test = test;
