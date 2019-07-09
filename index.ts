@@ -40,15 +40,15 @@ export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyT
   return db.batch(batch);
 }
 
-export function learnQuizzes(db: Db, keys: string[]|IterableIterator<string>, args: quiz.KeyToEbisu, date?: Date,
+export function learnQuizzes(db: Db, key: string, args: quiz.KeyToEbisu, date?: Date,
                              opts: {halflifeScale?: number, halflifeScales?: number[], alphaBeta?: number} = {}) {
   date = date || new Date();
-  quiz.learnQuizzes(keys, args, {date});
-  const prefixEv = EVENT_PREFIX + date.toISOString() + '-';
-  let ops =
-      Array.from(keys, (key, idx) => [{type: PUT, key: prefixEv + idx, value: {opts, ebisu: args.ebisus.get(key)}},
-                                      {type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key)}])
-  return db.batch(flat1(ops));
+  quiz.learnQuizzes(key, args, {date});
+  const randomSuffix = '-' + Math.floor(Math.random() * 1296).toString(36); // 1296 = 36*36
+  return db.batch([
+    {type: PUT, key: EVENT_PREFIX + date.toISOString() + randomSuffix, value: {opts, ebisu: args.ebisus.get(key)}},
+    {type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key)}
+  ]);
 }
 
 export function summarizeDb(db: Db) {

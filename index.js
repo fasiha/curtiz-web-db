@@ -111,14 +111,15 @@ function updateQuiz(db, result, key, args, _a) {
     return db.batch(batch);
 }
 exports.updateQuiz = updateQuiz;
-function learnQuizzes(db, keys, args, date, opts) {
+function learnQuizzes(db, key, args, date, opts) {
     if (opts === void 0) { opts = {}; }
     date = date || new Date();
-    quiz.learnQuizzes(keys, args, { date: date });
-    var prefixEv = EVENT_PREFIX + date.toISOString() + '-';
-    var ops = Array.from(keys, function (key, idx) { return [{ type: PUT, key: prefixEv + idx, value: { opts: opts, ebisu: args.ebisus.get(key) } },
-        { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }]; });
-    return db.batch(flat1(ops));
+    quiz.learnQuizzes(key, args, { date: date });
+    var randomSuffix = '-' + Math.floor(Math.random() * 1296).toString(36); // 1296 = 36*36
+    return db.batch([
+        { type: PUT, key: EVENT_PREFIX + date.toISOString() + randomSuffix, value: { opts: opts, ebisu: args.ebisus.get(key) } },
+        { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }
+    ]);
 }
 exports.learnQuizzes = learnQuizzes;
 function summarizeDb(db) {
