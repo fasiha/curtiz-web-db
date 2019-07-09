@@ -45,6 +45,16 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __values = (this && this.__values) || function (o) {
+    var m = typeof Symbol === "function" && o[Symbol.iterator], i = 0;
+    if (m) return m.call(o);
+    return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
+        }
+    };
+};
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
@@ -111,15 +121,27 @@ function updateQuiz(db, result, key, args, _a) {
     return db.batch(batch);
 }
 exports.updateQuiz = updateQuiz;
-function learnQuizzes(db, key, args, date, opts) {
+function learnQuizzes(db, keys, args, date, opts) {
+    var e_1, _a;
     if (opts === void 0) { opts = {}; }
     date = date || new Date();
-    quiz.learnQuizzes(key, args, { date: date });
-    var randomSuffix = '-' + Math.floor(Math.random() * 1296).toString(36); // 1296 = 36*36
-    return db.batch([
-        { type: PUT, key: EVENT_PREFIX + date.toISOString() + randomSuffix, value: { opts: opts, ebisu: args.ebisus.get(key) } },
-        { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }
-    ]);
+    try {
+        for (var keys_1 = __values(keys), keys_1_1 = keys_1.next(); !keys_1_1.done; keys_1_1 = keys_1.next()) {
+            var key = keys_1_1.value;
+            quiz.learnQuiz(key, args, { date: date });
+        }
+    }
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (keys_1_1 && !keys_1_1.done && (_a = keys_1.return)) _a.call(keys_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+    var prefixEv = EVENT_PREFIX + date.toISOString() + '-';
+    var ops = Array.from(keys, function (key, idx) { return [{ type: PUT, key: prefixEv + idx, value: { opts: opts, ebisu: args.ebisus.get(key) } },
+        { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }]; });
+    return db.batch(flat1(ops));
 }
 exports.learnQuizzes = learnQuizzes;
 function summarizeDb(db) {
