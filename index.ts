@@ -29,7 +29,7 @@ export async function initialize(db: Db, md: string): Promise<parse.QuizGraph&qu
   return {...parse.textToGraph(md), ...await loadEbisus(db)};
 }
 export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyToEbisu&parse.QuizGraph,
-                           {date}: quiz.UpdateQuizOpts) {
+                           {date}: quiz.UpdateQuizOpts = {}) {
   date = date || new Date();
   const batch: {type: typeof PUT, key: string, value: any}[] = [];
   function callback(key: string, ebisu: quiz.ebisu.Ebisu) {

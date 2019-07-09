@@ -110,7 +110,7 @@ function initialize(db, md) {
 }
 exports.initialize = initialize;
 function updateQuiz(db, result, key, args, _a) {
-    var date = _a.date;
+    var date = (_a === void 0 ? {} : _a).date;
     date = date || new Date();
     var batch = [];
     function callback(key, ebisu) {
