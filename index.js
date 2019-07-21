@@ -138,9 +138,13 @@ function learnQuizzes(db, keys, args, date, opts) {
         }
         finally { if (e_1) throw e_1.error; }
     }
-    var prefixEv = EVENT_PREFIX + date.toISOString() + '-';
-    var ops = Array.from(keys, function (key, idx) { return [{ type: PUT, key: prefixEv + idx, value: { opts: opts, ebisu: args.ebisus.get(key) } },
-        { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }]; });
+    var ops = Array.from(keys, function (key, idx) {
+        var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
+        return [
+            { type: PUT, key: EVENT_PREFIX + uid, value: { uid: uid, opts: opts, ebisu: args.ebisus.get(key) } },
+            { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }
+        ];
+    });
     return db.batch(flat1(ops));
 }
 exports.learnQuizzes = learnQuizzes;
