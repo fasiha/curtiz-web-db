@@ -5,8 +5,8 @@ import leveljs from 'level-js';
 import level, {LevelUp} from 'levelup';
 
 type Db = LevelUp<leveljs, AbstractIterator<any, any>>;
-const EBISU_PREFIX = 'ebisus/';
-const EVENT_PREFIX = 'events/';
+export const EBISU_PREFIX = 'ebisus/';
+export const EVENT_PREFIX = 'events/';
 const PUT: 'put' = 'put';
 
 function flat1<T>(v: T[][]) { return v.reduce((memo, curr) => memo.concat(curr), [] as T[]); }

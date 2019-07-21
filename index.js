@@ -70,8 +70,8 @@ var parse = __importStar(require("curtiz-parse-markdown"));
 var quiz = __importStar(require("curtiz-quiz-planner"));
 var level_js_1 = __importDefault(require("level-js"));
 var levelup_1 = __importDefault(require("levelup"));
-var EBISU_PREFIX = 'ebisus/';
-var EVENT_PREFIX = 'events/';
+exports.EBISU_PREFIX = 'ebisus/';
+exports.EVENT_PREFIX = 'events/';
 var PUT = 'put';
 function flat1(v) { return v.reduce(function (memo, curr) { return memo.concat(curr); }, []); }
 function rehydrateEbisu(nominalEbisu) {
@@ -85,10 +85,10 @@ exports.setup = setup;
 function loadEbisus(db) {
     var ebisus = new Map();
     return new Promise(function (resolve, reject) {
-        db.createReadStream({ gt: EBISU_PREFIX, lt: EBISU_PREFIX + '\xff', valueAsBuffer: false, keyAsBuffer: false })
+        db.createReadStream({ gt: exports.EBISU_PREFIX, lt: exports.EBISU_PREFIX + '\xff', valueAsBuffer: false, keyAsBuffer: false })
             .on('data', function (_a) {
             var key = _a.key, value = _a.value;
-            return ebisus.set(key.slice(EBISU_PREFIX.length), rehydrateEbisu(value));
+            return ebisus.set(key.slice(exports.EBISU_PREFIX.length), rehydrateEbisu(value));
         })
             .on('close', function () { return resolve({ ebisus: ebisus }); })
             .on('error', function (err) { return reject(err); });
@@ -114,8 +114,8 @@ function updateQuiz(db, result, key, args, opts) {
     var date = opts.date || new Date();
     var batch = [];
     function callback(key, ebisu) {
-        batch.push({ type: PUT, key: EBISU_PREFIX + key, value: ebisu });
-        batch.push({ type: PUT, key: EVENT_PREFIX + date.toISOString(), value: { result: result, ebisu: ebisu } });
+        batch.push({ type: PUT, key: exports.EBISU_PREFIX + key, value: ebisu });
+        batch.push({ type: PUT, key: exports.EVENT_PREFIX + date.toISOString(), value: { result: result, ebisu: ebisu } });
     }
     quiz.updateQuiz(result, key, args, { date: date, callback: callback });
     return db.batch(batch);
@@ -141,8 +141,8 @@ function learnQuizzes(db, keys, args, opts) {
     var ops = Array.from(keys, function (key, idx) {
         var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
         return [
-            { type: PUT, key: EVENT_PREFIX + uid, value: { uid: uid, opts: opts, ebisu: args.ebisus.get(key) } },
-            { type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key) }
+            { type: PUT, key: exports.EVENT_PREFIX + uid, value: { uid: uid, opts: opts, ebisu: args.ebisus.get(key) } },
+            { type: PUT, key: exports.EBISU_PREFIX + key, value: args.ebisus.get(key) }
         ];
     });
     return db.batch(flat1(ops));
