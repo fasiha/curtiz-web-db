@@ -109,9 +109,9 @@ function initialize(db, md) {
     });
 }
 exports.initialize = initialize;
-function updateQuiz(db, result, key, args, _a) {
-    var date = (_a === void 0 ? {} : _a).date;
-    date = date || new Date();
+function updateQuiz(db, result, key, args, opts) {
+    if (opts === void 0) { opts = {}; }
+    var date = opts.date || new Date();
     var batch = [];
     function callback(key, ebisu) {
         batch.push({ type: PUT, key: EBISU_PREFIX + key, value: ebisu });
@@ -121,14 +121,14 @@ function updateQuiz(db, result, key, args, _a) {
     return db.batch(batch);
 }
 exports.updateQuiz = updateQuiz;
-function learnQuizzes(db, keys, args, date, opts) {
+function learnQuizzes(db, keys, args, opts) {
     var e_1, _a;
     if (opts === void 0) { opts = {}; }
-    date = date || new Date();
+    var date = opts.date || new Date();
     try {
         for (var keys_1 = __values(keys), keys_1_1 = keys_1.next(); !keys_1_1.done; keys_1_1 = keys_1.next()) {
             var key = keys_1_1.value;
-            quiz.learnQuiz(key, args, { date: date });
+            quiz.learnQuiz(key, args, __assign({}, opts, { date: date }));
         }
     }
     catch (e_1_1) { e_1 = { error: e_1_1 }; }

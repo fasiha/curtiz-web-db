@@ -29,8 +29,8 @@ export async function initialize(db: Db, md: string): Promise<parse.QuizGraph&qu
   return {...parse.textToGraph(md), ...await loadEbisus(db)};
 }
 export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyToEbisu&parse.QuizGraph,
-                           {date}: quiz.UpdateQuizOpts = {}) {
-  date = date || new Date();
+                           opts: quiz.UpdateQuizOpts = {}) {
+  const date = opts.date || new Date();
   const batch: {type: typeof PUT, key: string, value: any}[] = [];
   function callback(key: string, ebisu: quiz.ebisu.Ebisu) {
     batch.push({type: PUT, key: EBISU_PREFIX + key, value: ebisu});
@@ -40,9 +40,9 @@ export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyT
   return db.batch(batch);
 }
 
-export function learnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu, date: Date, opts: quiz.LearnQuizOpts = {}) {
-  date = date || new Date();
-  for (const key of keys) { quiz.learnQuiz(key, args, {date}); }
+export function learnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu, opts: quiz.LearnQuizOpts = {}) {
+  const date = opts.date || new Date();
+  for (const key of keys) { quiz.learnQuiz(key, args, {...opts, date}); }
   let ops = Array.from(keys, (key, idx) => {
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
     return [
