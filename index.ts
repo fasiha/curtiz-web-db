@@ -50,8 +50,8 @@ export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyT
 
 export function learnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu, opts: quiz.LearnQuizOpts = {}) {
   const date = opts.date || new Date();
-  for (const key of keys) { quiz.learnQuiz(key, args, {...opts, date}); }
   let ops = Array.from(keys, (key, idx) => {
+    quiz.learnQuiz(key, args, {...opts, date});
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
     const ebisu = args.ebisus.get(key);
     return [
@@ -62,9 +62,10 @@ export function learnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu, opts
   return db.batch(flat1(ops));
 }
 
-export function unlearnQuizzes(db: Db, keys: string[]) {
+export function unlearnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu) {
   const date = new Date();
   let ops = Array.from(keys, (key, idx) => {
+    args.ebisus.delete(key);
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
     return [
       {type: PUT, key: EVENT_PREFIX + uid, value: {uid, key, action: 'unlearn'}},

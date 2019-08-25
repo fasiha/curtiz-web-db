@@ -45,16 +45,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var __values = (this && this.__values) || function (o) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator], i = 0;
-    if (m) return m.call(o);
-    return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-};
 var __importStar = (this && this.__importStar) || function (mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
@@ -130,23 +120,10 @@ function updateQuiz(db, result, key, args, opts) {
 }
 exports.updateQuiz = updateQuiz;
 function learnQuizzes(db, keys, args, opts) {
-    var e_1, _a;
     if (opts === void 0) { opts = {}; }
     var date = opts.date || new Date();
-    try {
-        for (var keys_1 = __values(keys), keys_1_1 = keys_1.next(); !keys_1_1.done; keys_1_1 = keys_1.next()) {
-            var key = keys_1_1.value;
-            quiz.learnQuiz(key, args, __assign({}, opts, { date: date }));
-        }
-    }
-    catch (e_1_1) { e_1 = { error: e_1_1 }; }
-    finally {
-        try {
-            if (keys_1_1 && !keys_1_1.done && (_a = keys_1.return)) _a.call(keys_1);
-        }
-        finally { if (e_1) throw e_1.error; }
-    }
     var ops = Array.from(keys, function (key, idx) {
+        quiz.learnQuiz(key, args, __assign({}, opts, { date: date }));
         var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
         var ebisu = args.ebisus.get(key);
         return [
@@ -157,9 +134,10 @@ function learnQuizzes(db, keys, args, opts) {
     return db.batch(flat1(ops));
 }
 exports.learnQuizzes = learnQuizzes;
-function unlearnQuizzes(db, keys) {
+function unlearnQuizzes(db, keys, args) {
     var date = new Date();
     var ops = Array.from(keys, function (key, idx) {
+        args.ebisus.delete(key);
         var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
         return [
             { type: PUT, key: exports.EVENT_PREFIX + uid, value: { uid: uid, key: key, action: 'unlearn' } },
