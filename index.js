@@ -109,11 +109,8 @@ function updateQuiz(db, result, key, args, opts) {
         batch.push({ type: PUT, key: exports.EBISU_PREFIX + key, value: ebisu });
         // Log the event
         var uid = date.toISOString() + "-" + Math.random().toString(36).slice(2);
-        batch.push({
-            type: PUT,
-            key: exports.EVENT_PREFIX + uid,
-            value: { uid: uid, key: key, action: 'update', result: result, ebisu: ebisu, eventData: opts.eventData }
-        });
+        var value = { uid: uid, date: date, key: key, action: 'update', result: result, ebisu: ebisu, eventData: opts.eventData };
+        batch.push({ type: PUT, key: exports.EVENT_PREFIX + uid, value: value });
     }
     quiz.updateQuiz(result, key, args, { date: date, callback: callback });
     return db.batch(batch);
@@ -126,8 +123,12 @@ function learnQuizzes(db, keys, args, opts) {
         quiz.learnQuiz(key, args, __assign({}, opts, { date: date }));
         var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
         var ebisu = args.ebisus.get(key);
+        if (!ebisu) {
+            throw new Error('typescript pacification: ebisu not found in graph');
+        }
+        var eventValue = { uid: uid, opts: opts, key: key, action: 'learn', ebisu: ebisu };
         return [
-            { type: PUT, key: exports.EVENT_PREFIX + uid, value: { uid: uid, opts: opts, key: key, action: 'learn', ebisu: ebisu } },
+            { type: PUT, key: exports.EVENT_PREFIX + uid, value: eventValue },
             { type: PUT, key: exports.EBISU_PREFIX + key, value: ebisu },
         ];
     });
@@ -139,8 +140,9 @@ function unlearnQuizzes(db, keys, args) {
     var ops = Array.from(keys, function (key, idx) {
         args.ebisus.delete(key);
         var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
+        var eventValue = { uid: uid, key: key, action: 'unlearn' };
         return [
-            { type: PUT, key: exports.EVENT_PREFIX + uid, value: { uid: uid, key: key, action: 'unlearn' } },
+            { type: PUT, key: exports.EVENT_PREFIX + uid, value: eventValue },
             { type: DEL, key: exports.EBISU_PREFIX + key },
         ];
     });

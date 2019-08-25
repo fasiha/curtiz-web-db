@@ -29,6 +29,18 @@ export function loadEbisus(db: Db): Promise<quiz.KeyToEbisu> {
 export async function initialize(db: Db, md: string): Promise<parse.QuizGraph&quiz.KeyToEbisu> {
   return {...parse.textToGraph(md), ...await loadEbisus(db)};
 }
+export interface EventBase {
+  uid: string;
+  action: string;
+}
+export interface EventUpdate extends EventBase {
+  key: string;
+  action: 'update';
+  result: boolean;
+  ebisu: quiz.ebisu.Ebisu;
+  date: Date;
+  eventData?: any;
+}
 export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyToEbisu&parse.QuizGraph,
                            opts: quiz.UpdateQuizOpts&{eventData?: any} = {}) {
   const date = opts.date || new Date();
@@ -38,37 +50,45 @@ export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyT
     batch.push({type: PUT, key: EBISU_PREFIX + key, value: ebisu});
     // Log the event
     const uid = `${date.toISOString()}-${Math.random().toString(36).slice(2)}`;
-    batch.push({
-      type: PUT,
-      key: EVENT_PREFIX + uid,
-      value: {uid, key, action: 'update', result, ebisu, eventData: opts.eventData}
-    });
+    const value: EventUpdate = {uid, date, key, action: 'update', result, ebisu, eventData: opts.eventData};
+    batch.push({type: PUT, key: EVENT_PREFIX + uid, value});
   }
   quiz.updateQuiz(result, key, args, {date, callback});
   return db.batch(batch);
 }
-
+export interface EventLearn extends EventBase {
+  opts: quiz.LearnQuizOpts;
+  key: string;
+  ebisu: quiz.ebisu.Ebisu;
+  action: 'learn';
+}
 export function learnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu, opts: quiz.LearnQuizOpts = {}) {
   const date = opts.date || new Date();
   let ops = Array.from(keys, (key, idx) => {
     quiz.learnQuiz(key, args, {...opts, date});
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
     const ebisu = args.ebisus.get(key);
+    if (!ebisu) { throw new Error('typescript pacification: ebisu not found in graph'); }
+    const eventValue: EventLearn = {uid, opts, key, action: 'learn', ebisu};
     return [
-      {type: PUT, key: EVENT_PREFIX + uid, value: {uid, opts, key, action: 'learn', ebisu}},
+      {type: PUT, key: EVENT_PREFIX + uid, value: eventValue},
       {type: PUT, key: EBISU_PREFIX + key, value: ebisu},
     ];
   })
   return db.batch(flat1(ops));
 }
-
+export interface EventUnlearn extends EventBase {
+  action: 'unlearn';
+  key: string;
+}
 export function unlearnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu) {
   const date = new Date();
   let ops = Array.from(keys, (key, idx) => {
     args.ebisus.delete(key);
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
+    const eventValue: EventUnlearn = {uid, key, action: 'unlearn'};
     return [
-      {type: PUT, key: EVENT_PREFIX + uid, value: {uid, key, action: 'unlearn'}},
+      {type: PUT, key: EVENT_PREFIX + uid, value: eventValue},
       {type: DEL, key: EBISU_PREFIX + key},
     ];
   })
