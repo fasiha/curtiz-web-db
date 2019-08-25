@@ -1,4 +1,4 @@
-import {AbstractIterator} from 'abstract-leveldown';
+import {AbstractIterator, AbstractIteratorOptions} from 'abstract-leveldown';
 import * as parse from 'curtiz-parse-markdown';
 import * as quiz from 'curtiz-quiz-planner';
 import leveljs from 'level-js';
@@ -75,10 +75,10 @@ export function unlearnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu) {
   return db.batch(flat1(ops));
 }
 
-export function summarizeDb(db: Db) {
-  let res: any[] = [];
+export function summarizeDb(db: Db, opts: AbstractIteratorOptions = {}): Promise<{key: string, value: any}[]> {
+  let res: {key: string, value: any}[] = [];
   return new Promise((resolve, reject) => {
-    db.createReadStream({valueAsBuffer: false, keyAsBuffer: false})
+    db.createReadStream({valueAsBuffer: false, keyAsBuffer: false, ...opts})
         .on('data', x => res.push(x))
         .on('close', () => resolve(res))
         .on('error', err => reject(err));

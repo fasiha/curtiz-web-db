@@ -147,10 +147,11 @@ function unlearnQuizzes(db, keys, args) {
     return db.batch(flat1(ops));
 }
 exports.unlearnQuizzes = unlearnQuizzes;
-function summarizeDb(db) {
+function summarizeDb(db, opts) {
+    if (opts === void 0) { opts = {}; }
     var res = [];
     return new Promise(function (resolve, reject) {
-        db.createReadStream({ valueAsBuffer: false, keyAsBuffer: false })
+        db.createReadStream(__assign({ valueAsBuffer: false, keyAsBuffer: false }, opts))
             .on('data', function (x) { return res.push(x); })
             .on('close', function () { return resolve(res); })
             .on('error', function (err) { return reject(err); });
