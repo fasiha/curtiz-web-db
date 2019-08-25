@@ -74,6 +74,7 @@ var levelup_1 = __importDefault(require("levelup"));
 exports.EBISU_PREFIX = 'ebisus/';
 exports.EVENT_PREFIX = 'events/';
 var PUT = 'put';
+var DEL = 'del';
 function flat1(v) { return v.reduce(function (memo, curr) { return memo.concat(curr); }, []); }
 function rehydrateEbisu(nominalEbisu) {
     if (!(nominalEbisu.lastDate instanceof Date)) {
@@ -115,8 +116,15 @@ function updateQuiz(db, result, key, args, opts) {
     var date = opts.date || new Date();
     var batch = [];
     function callback(key, ebisu) {
+        // Store the new value
         batch.push({ type: PUT, key: exports.EBISU_PREFIX + key, value: ebisu });
-        batch.push({ type: PUT, key: exports.EVENT_PREFIX + date.toISOString(), value: { result: result, ebisu: ebisu } });
+        // Log the event
+        var uid = date.toISOString() + "-" + Math.random().toString(36).slice(2);
+        batch.push({
+            type: PUT,
+            key: exports.EVENT_PREFIX + uid,
+            value: { uid: uid, key: key, action: 'update', result: result, ebisu: ebisu, eventData: opts.eventData }
+        });
     }
     quiz.updateQuiz(result, key, args, { date: date, callback: callback });
     return db.batch(batch);
@@ -141,14 +149,27 @@ function learnQuizzes(db, keys, args, opts) {
     }
     var ops = Array.from(keys, function (key, idx) {
         var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
+        var ebisu = args.ebisus.get(key);
         return [
-            { type: PUT, key: exports.EVENT_PREFIX + uid, value: { uid: uid, opts: opts, ebisu: args.ebisus.get(key) } },
-            { type: PUT, key: exports.EBISU_PREFIX + key, value: args.ebisus.get(key) }
+            { type: PUT, key: exports.EVENT_PREFIX + uid, value: { uid: uid, opts: opts, key: key, action: 'learn', ebisu: ebisu } },
+            { type: PUT, key: exports.EBISU_PREFIX + key, value: ebisu },
         ];
     });
     return db.batch(flat1(ops));
 }
 exports.learnQuizzes = learnQuizzes;
+function unlearnQuizzes(db, keys) {
+    var date = new Date();
+    var ops = Array.from(keys, function (key, idx) {
+        var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
+        return [
+            { type: PUT, key: exports.EVENT_PREFIX + uid, value: { uid: uid, key: key, action: 'unlearn' } },
+            { type: DEL, key: exports.EBISU_PREFIX + key },
+        ];
+    });
+    return db.batch(flat1(ops));
+}
+exports.unlearnQuizzes = unlearnQuizzes;
 function summarizeDb(db) {
     var res = [];
     return new Promise(function (resolve, reject) {

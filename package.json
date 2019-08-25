@@ -22,7 +22,7 @@
   "dependencies": {
     "curtiz-parse-markdown": "git+https://github.com/fasiha/curtiz-parse-markdown.git",
     "curtiz-quiz-planner": "git+https://github.com/fasiha/curtiz-quiz-planner.git",
-    "ebisu-js": "^1.0.0",
+    "ebisu-js": "^1.0.1",
     "level-js": "^4.0.1",
     "levelup": "^4.0.2"
   }
