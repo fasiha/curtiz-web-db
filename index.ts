@@ -7,7 +7,8 @@ import level, {LevelUp} from 'levelup';
 type Db = LevelUp<leveljs, AbstractIterator<any, any>>;
 export const EBISU_PREFIX = 'ebisus/';
 export const EVENT_PREFIX = 'events/';
-const PUT: 'put' = 'put';
+const PUT = 'put' as const ;
+const DEL = 'del' as const ;
 
 function flat1<T>(v: T[][]) { return v.reduce((memo, curr) => memo.concat(curr), [] as T[]); }
 function rehydrateEbisu(nominalEbisu: quiz.ebisu.Ebisu) {
@@ -29,12 +30,19 @@ export async function initialize(db: Db, md: string): Promise<parse.QuizGraph&qu
   return {...parse.textToGraph(md), ...await loadEbisus(db)};
 }
 export function updateQuiz(db: Db, result: boolean, key: string, args: quiz.KeyToEbisu&parse.QuizGraph,
-                           opts: quiz.UpdateQuizOpts = {}) {
+                           opts: quiz.UpdateQuizOpts&{eventData?: any} = {}) {
   const date = opts.date || new Date();
   const batch: {type: typeof PUT, key: string, value: any}[] = [];
   function callback(key: string, ebisu: quiz.ebisu.Ebisu) {
+    // Store the new value
     batch.push({type: PUT, key: EBISU_PREFIX + key, value: ebisu});
-    batch.push({type: PUT, key: EVENT_PREFIX + (date as Date).toISOString(), value: {result, ebisu}});
+    // Log the event
+    const uid = `${date.toISOString()}-${Math.random().toString(36).slice(2)}`;
+    batch.push({
+      type: PUT,
+      key: EVENT_PREFIX + uid,
+      value: {uid, key, action: 'update', result, ebisu, eventData: opts.eventData}
+    });
   }
   quiz.updateQuiz(result, key, args, {date, callback});
   return db.batch(batch);
@@ -45,9 +53,22 @@ export function learnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu, opts
   for (const key of keys) { quiz.learnQuiz(key, args, {...opts, date}); }
   let ops = Array.from(keys, (key, idx) => {
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
+    const ebisu = args.ebisus.get(key);
     return [
-      {type: PUT, key: EVENT_PREFIX + uid, value: {uid, opts, ebisu: args.ebisus.get(key)}},
-      {type: PUT, key: EBISU_PREFIX + key, value: args.ebisus.get(key)}
+      {type: PUT, key: EVENT_PREFIX + uid, value: {uid, opts, key, action: 'learn', ebisu}},
+      {type: PUT, key: EBISU_PREFIX + key, value: ebisu},
+    ];
+  })
+  return db.batch(flat1(ops));
+}
+
+export function unlearnQuizzes(db: Db, keys: string[]) {
+  const date = new Date();
+  let ops = Array.from(keys, (key, idx) => {
+    const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
+    return [
+      {type: PUT, key: EVENT_PREFIX + uid, value: {uid, key, action: 'unlearn'}},
+      {type: DEL, key: EBISU_PREFIX + key},
     ];
   })
   return db.batch(flat1(ops));
