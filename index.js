@@ -126,7 +126,7 @@ function learnQuizzes(db, keys, args, opts) {
         if (!ebisu) {
             throw new Error('typescript pacification: ebisu not found in graph');
         }
-        var eventValue = { uid: uid, opts: opts, key: key, action: 'learn', ebisu: ebisu };
+        var eventValue = { uid: uid, date: date, opts: opts, key: key, action: 'learn', ebisu: ebisu };
         return [
             { type: PUT, key: exports.EVENT_PREFIX + uid, value: eventValue },
             { type: PUT, key: exports.EBISU_PREFIX + key, value: ebisu },
@@ -140,7 +140,7 @@ function unlearnQuizzes(db, keys, args) {
     var ops = Array.from(keys, function (key, idx) {
         args.ebisus.delete(key);
         var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
-        var eventValue = { uid: uid, key: key, action: 'unlearn' };
+        var eventValue = { uid: uid, date: date, key: key, action: 'unlearn' };
         return [
             { type: PUT, key: exports.EVENT_PREFIX + uid, value: eventValue },
             { type: DEL, key: exports.EBISU_PREFIX + key },

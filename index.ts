@@ -32,6 +32,7 @@ export async function initialize(db: Db, md: string): Promise<parse.QuizGraph&qu
 export interface EventBase {
   uid: string;
   action: string;
+  date: Date;
 }
 export interface EventUpdate extends EventBase {
   key: string;
@@ -69,7 +70,7 @@ export function learnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu, opts
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
     const ebisu = args.ebisus.get(key);
     if (!ebisu) { throw new Error('typescript pacification: ebisu not found in graph'); }
-    const eventValue: EventLearn = {uid, opts, key, action: 'learn', ebisu};
+    const eventValue: EventLearn = {uid, date, opts, key, action: 'learn', ebisu};
     return [
       {type: PUT, key: EVENT_PREFIX + uid, value: eventValue},
       {type: PUT, key: EBISU_PREFIX + key, value: ebisu},
@@ -86,7 +87,7 @@ export function unlearnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu) {
   let ops = Array.from(keys, (key, idx) => {
     args.ebisus.delete(key);
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
-    const eventValue: EventUnlearn = {uid, key, action: 'unlearn'};
+    const eventValue: EventUnlearn = {uid, date, key, action: 'unlearn'};
     return [
       {type: PUT, key: EVENT_PREFIX + uid, value: eventValue},
       {type: DEL, key: EBISU_PREFIX + key},
