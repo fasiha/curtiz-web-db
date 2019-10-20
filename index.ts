@@ -95,8 +95,10 @@ export function unlearnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu) {
   })
   return db.batch(flat1(ops));
 }
-
-export function summarizeDb(db: Db, opts: AbstractIteratorOptions = {}): Promise<{key: string, value: any}[]> {
+export function summarizeDb(db: Db, opts: AbstractIteratorOptions = {}): Promise<{
+  key: string,
+  value: {[key: string]: any},
+}[]> {
   let res: {key: string, value: any}[] = [];
   return new Promise((resolve, reject) => {
     db.createReadStream({valueAsBuffer: false, keyAsBuffer: false, ...opts})
