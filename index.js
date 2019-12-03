@@ -116,13 +116,13 @@ function updateQuiz(db, result, key, args, opts) {
     return db.batch(batch);
 }
 exports.updateQuiz = updateQuiz;
-function learnQuizzes(db, keys, args, opts) {
+function learnQuizzes(db, keys, ebisusContainer, opts) {
     if (opts === void 0) { opts = {}; }
     var date = opts.date || new Date();
     var ops = Array.from(keys, function (key, idx) {
-        quiz.learnQuiz(key, args, __assign({}, opts, { date: date }));
+        quiz.learnQuiz(key, ebisusContainer, __assign({}, opts, { date: date }));
         var uid = date.toISOString() + "-" + idx + "-" + Math.random().toString(36).slice(2);
-        var ebisu = args.ebisus.get(key);
+        var ebisu = ebisusContainer.ebisus.get(key);
         if (!ebisu) {
             throw new Error('typescript pacification: ebisu not found in graph');
         }
@@ -160,3 +160,14 @@ function summarizeDb(db, opts) {
     });
 }
 exports.summarizeDb = summarizeDb;
+function deleteDb(db, opts) {
+    if (opts === void 0) { opts = {}; }
+    var batch = db.batch();
+    return new Promise(function (resolve, reject) {
+        db.createKeyStream(__assign({ keyAsBuffer: false }, opts))
+            .on('data', function (key) { batch = batch.del(key); })
+            .on('close', function () { resolve(batch.write()); })
+            .on('error', function (err) { return reject(err); });
+    });
+}
+exports.deleteDb = deleteDb;

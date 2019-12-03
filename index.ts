@@ -63,12 +63,12 @@ export interface EventLearn extends EventBase {
   ebisu: quiz.ebisu.Ebisu;
   action: 'learn';
 }
-export function learnQuizzes(db: Db, keys: string[], args: quiz.KeyToEbisu, opts: quiz.LearnQuizOpts = {}) {
+export function learnQuizzes(db: Db, keys: string[], ebisusContainer: quiz.KeyToEbisu, opts: quiz.LearnQuizOpts = {}) {
   const date = opts.date || new Date();
   let ops = Array.from(keys, (key, idx) => {
-    quiz.learnQuiz(key, args, {...opts, date});
+    quiz.learnQuiz(key, ebisusContainer, {...opts, date});
     const uid = `${date.toISOString()}-${idx}-${Math.random().toString(36).slice(2)}`;
-    const ebisu = args.ebisus.get(key);
+    const ebisu = ebisusContainer.ebisus.get(key);
     if (!ebisu) { throw new Error('typescript pacification: ebisu not found in graph'); }
     const eventValue: EventLearn = {uid, date, opts, key, action: 'learn', ebisu};
     return [
@@ -104,6 +104,16 @@ export function summarizeDb(db: Db, opts: AbstractIteratorOptions = {}): Promise
     db.createReadStream({valueAsBuffer: false, keyAsBuffer: false, ...opts})
         .on('data', x => res.push(x))
         .on('close', () => resolve(res))
+        .on('error', err => reject(err));
+  });
+}
+
+export function deleteDb(db: Db, opts: AbstractIteratorOptions = {}) {
+  let batch = db.batch();
+  return new Promise((resolve, reject) => {
+    db.createKeyStream({keyAsBuffer: false, ...opts})
+        .on('data', key => { batch = batch.del(key); })
+        .on('close', () => {resolve(batch.write())})
         .on('error', err => reject(err));
   });
 }
